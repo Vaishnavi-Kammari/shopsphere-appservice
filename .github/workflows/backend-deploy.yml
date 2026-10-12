@@ -44,5 +44,5 @@ jobs:
       - name: Deploy backend to Azure App Service
         uses: azure/webapps-deploy@v3
         with:
-          app-name: shopsphere-api-vaishnavi
+          app-name: shopsphere-backend
           package: backend/target/*.jar
