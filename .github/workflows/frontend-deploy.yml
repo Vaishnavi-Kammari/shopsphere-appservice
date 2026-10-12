@@ -1,0 +1,63 @@
+
+name: ShopSphere Frontend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build React application
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://shopsphere-api-vaishnavi.azurewebsites.net/api
+        run: npm run build
+
+      - name: Prepare frontend deployment package
+        run: |
+          mkdir -p deploy/dist
+          cp -r frontend/dist/. deploy/dist/
+          cp frontend/package.json frontend/package-lock.json deploy/
+
+      - name: Install production dependencies
+        working-directory: deploy
+        run: npm ci --omit=dev
+
+      - name: Login to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy frontend to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: appservice-frontend
+          package: deploy
